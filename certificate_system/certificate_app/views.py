@@ -15,7 +15,7 @@ from reportlab.lib.pagesizes import A4
 
 from .models import PDFDocument, TextBox, FilledPDF
 
-# تمپلت ویوها
+
 class HomeView(TemplateView):
     template_name = 'index.html'
 
@@ -46,7 +46,7 @@ class BatchFillView(TemplateView):
         context['pdf_id'] = self.kwargs['pdf_id']
         return context
 
-# API ویوها
+
 @csrf_exempt
 def upload_pdf(request):
     if request.method == 'POST':
@@ -136,19 +136,19 @@ def edit_pdf(request, pdf_id):
 
 def generate_filled_pdf(pdf_document, values):
     try:
-        # Get original PDF data
+        
         original_pdf_data = pdf_document.get_pdf_data()
         original_pdf = PdfReader(BytesIO(original_pdf_data))
         
-        # Create a new PDF with the text
+        
         packet = BytesIO()
         can = canvas.Canvas(packet, pagesize=A4)
         
-        # Add text to the PDF
+        
         for text_box in pdf_document.text_boxes.all():
             text_value = values.get(text_box.name, '')
             if text_value:
-                # Set font
+                
                 if text_box.font_family == 'Helvetica':
                     can.setFont('Helvetica', text_box.font_size)
                 elif text_box.font_family == 'Times-Roman':
@@ -158,7 +158,7 @@ def generate_filled_pdf(pdf_document, values):
                 else:
                     can.setFont('Helvetica', text_box.font_size)
                 
-                # Calculate Y position (PDF coordinates are from bottom left)
+                
                 y_position = A4[1] - text_box.y_position - text_box.height
                 can.drawString(text_box.x_position, y_position, text_value)
         
@@ -166,16 +166,16 @@ def generate_filled_pdf(pdf_document, values):
         packet.seek(0)
         new_pdf = PdfReader(packet)
         
-        # Merge the new PDF with the original
+       
         output = PdfWriter()
         
         for page_num in range(len(original_pdf.pages)):
             page = original_pdf.pages[page_num]
-            if page_num == 0:  # Only merge with first page for now
+            if page_num == 0:  
                 page.merge_page(new_pdf.pages[0])
             output.add_page(page)
         
-        # Write the output to a bytes buffer
+        
         output_buffer = BytesIO()
         output.write(output_buffer)
         output_buffer.seek(0)
@@ -225,22 +225,22 @@ def fill_pdf(request, pdf_id):
             
             print(f"Generating PDF with values: {filled_values}")
             
-            # Generate the filled PDF
+           
             pdf_data = generate_filled_pdf(pdf_document, filled_values)
             
-            # Verify PDF is not empty
+            
             if len(pdf_data) == 0:
                 raise Exception('Generated PDF is empty')
             
             print(f"PDF generated successfully, size: {len(pdf_data)} bytes")
             
-            # Save to database
+            
             FilledPDF.objects.create(
                 pdf_document=pdf_document,
                 filled_data=filled_values
             )
             
-            # Return the PDF as response
+            
             response = HttpResponse(pdf_data, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="filled_{pdf_document.name}.pdf"'
             return response
@@ -261,7 +261,7 @@ def batch_fill_pdf(request, pdf_id):
             
             print(f"Generating {len(entries)} PDFs in batch")
             
-            # Create a ZIP file in memory
+            
             zip_buffer = BytesIO()
             
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -271,10 +271,10 @@ def batch_fill_pdf(request, pdf_id):
                     
                     print(f"Generating PDF {i+1}: {title}")
                     
-                    # Generate the filled PDF
+                    
                     pdf_data = generate_filled_pdf(pdf_document, values)
                     
-                    # Add to ZIP
+                   
                     file_name = f"{clean_filename(title)}_{i+1}.pdf"
                     zip_file.writestr(file_name, pdf_data)
                     
@@ -282,7 +282,7 @@ def batch_fill_pdf(request, pdf_id):
             
             zip_buffer.seek(0)
             
-            # Return the ZIP file
+            
             response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
             response['Content-Disposition'] = f'attachment; filename="certificates_batch.zip"'
             return response
