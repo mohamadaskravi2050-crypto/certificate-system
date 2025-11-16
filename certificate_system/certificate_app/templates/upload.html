@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload PDF - Certificate System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Upload PDF Document</h1>
+        <a href="/" class="btn btn-secondary">Back to Home</a>
+    </div>
+
+    <div class="upload-form">
+        <form id="uploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="pdfFile">Select PDF File:</label>
+                <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required class="file-input">
+                <small class="form-text">Maximum file size: 10MB</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="pdfName">Document Name:</label>
+                <input type="text" id="pdfName" name="name" placeholder="Enter document name" required class="text-input">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Upload PDF</button>
+        </form>
+
+        <div id="uploadStatus" class="status-message"></div>
+    </div>
+</div>
+
+<script>
+// Function to get CSRF token
+function getCSRFToken() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this); // استفاده از this برای گرفتن همه فیلدها
+    const statusDiv = document.getElementById('uploadStatus');
+    const submitBtn = this.querySelector('button[type="submit"]');
+
+    // غیرفعال کردن دکمه هنگام آپلود
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+
+    statusDiv.innerHTML = '<div class="loading">Uploading PDF... Please wait.</div>';
+
+    try {
+        const response = await fetch('/api/upload/', {
+            method: 'POST',
+            body: formData,
+            // headers: {'X-CSRFToken': getCSRFToken()} // برای FormData معمولا نیاز نیست
+        });
+
+        console.log('Response status:', response.status); // دیباگ
+
+        const data = await response.json();
+        console.log('Response data:', data); // دیباگ
+
+        if (response.ok) {
+            statusDiv.innerHTML = '<div class="success">PDF uploaded successfully! Redirecting to edit page...</div>';
+            setTimeout(() => {
+                window.location.href = `/edit/${data.id}/`;
+            }, 2000);
+        } else {
+            statusDiv.innerHTML = `<div class="error">Error: ${data.error || 'Upload failed'}</div>`;
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        statusDiv.innerHTML = '<div class="error">Upload failed. Please check console for details.</div>';
+    } finally {
+        // فعال کردن دکمه
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload PDF';
+    }
+});
+
+// نمایش نام فایل انتخاب شده
+document.getElementById('pdfFile').addEventListener('change', function(e) {
+    const fileName = this.files[0] ? this.files[0].name : 'No file chosen';
+    console.log('Selected file:', fileName);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,633 @@
+{% extends 'base.html' %}
+
+{% block title %}Batch Fill - Certificate System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Batch Fill - <span id="pdfTitle">Loading...</span></h1>
+        <div class="header-actions">
+            <button id="downloadAll" class="btn btn-primary" style="display: none;">📦 Download All</button>
+            <a href="/fill/{{ pdf_id }}/" class="btn btn-outline">← Back to Single Fill</a>
+        </div>
+    </div>
+
+    <div class="batch-container">
+        <!-- Left Panel - Form and Entries List -->
+        <div class="entries-panel">
+            <div class="form-section">
+                <h3>➕ Add New Entry</h3>
+                <form id="entryForm">
+                    <div id="entryFields">
+                        <!-- Dynamic fields will be generated here -->
+                    </div>
+                    <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 15px;">
+                        ✅ Add Entry
+                    </button>
+                </form>
+            </div>
+
+            <div class="entries-section">
+                <h3>📋 Entries List <span id="entriesCount">(0)</span></h3>
+                <div id="entriesList" class="entries-list">
+                    <div class="no-entries">No entries yet. Add your first entry!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Progress -->
+        <div class="preview-panel">
+            <h3>📄 PDF Information</h3>
+            <div class="pdf-info">
+                <div class="info-item">
+                    <strong>Document:</strong> <span id="pdfName">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <strong>Text Fields:</strong> <span id="fieldsCount">0</span>
+                </div>
+                <div class="info-item">
+                    <strong>Entries:</strong> <span id="totalEntries">0</span>
+                </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div id="progressSection" class="progress-section" style="display: none; margin-top: 20px;">
+                <h4>🔄 Generation Progress</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Preparing...</div>
+                <div class="progress-details" id="progressDetails"></div>
+            </div>
+
+            <div class="batch-tips">
+                <h4>💡 Tips</h4>
+                <ul>
+                    <li>Add multiple entries with different data</li>
+                    <li>Click "Download All" to get all PDFs in one ZIP file</li>
+                    <li>All PDFs are generated on the server</li>
+                    <li>No multiple requests - faster and more reliable</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* استایل‌ها همانند قبل */
+.batch-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.entries-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-section, .entries-section, .preview-panel {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+#entryFields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.entry-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.entry-field label {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.entry-field input {
+    padding: 10px 12px;
+    border: 2px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.entry-field input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.entries-list {
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.entry-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    transition: all 0.2s ease;
+}
+
+.entry-item:hover {
+    background: #e9ecef;
+    border-color: #007bff;
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.entry-title {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.entry-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.entry-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.entry-edit {
+    color: #007bff;
+}
+
+.entry-edit:hover {
+    background: #007bff;
+    color: white;
+}
+
+.entry-delete {
+    color: #dc3545;
+}
+
+.entry-delete:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.entry-content {
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.no-entries {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 30px;
+}
+
+.pdf-info {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.info-item {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.info-item strong {
+    color: #2c3e50;
+}
+
+.progress-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 12px;
+    color: #495057;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.progress-details {
+    font-size: 11px;
+    color: #6c757d;
+    text-align: center;
+}
+
+.batch-tips {
+    margin-top: 20px;
+    padding: 15px;
+    background: #e7f3ff;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.batch-tips h4 {
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+.batch-tips ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #495057;
+}
+
+.batch-tips li {
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+@media (max-width: 1024px) {
+    .batch-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+let currentPdfId = null;
+let textBoxes = [];
+let entries = [];
+let isGenerating = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const pathParts = window.location.pathname.split('/');
+    currentPdfId = parseInt(pathParts[pathParts.length - 2]);
+    
+    if (currentPdfId) {
+        loadPDFData();
+    }
+});
+
+async function loadPDFData() {
+    try {
+        const response = await fetch(`/api/fill/${currentPdfId}/`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('pdfTitle').textContent = data.pdf_name;
+            document.getElementById('pdfName').textContent = data.pdf_name;
+            
+            textBoxes = data.text_boxes;
+            document.getElementById('fieldsCount').textContent = textBoxes.length;
+            
+            generateEntryFields();
+            setupEventListeners();
+            updateEntriesCount();
+        } else {
+            alert('Error loading PDF data: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading PDF data');
+    }
+}
+
+function generateEntryFields() {
+    const entryFields = document.getElementById('entryFields');
+    
+    if (textBoxes.length === 0) {
+        entryFields.innerHTML = '<div style="text-align: center; color: #666; font-style: italic;">No text boxes defined for this PDF.</div>';
+        return;
+    }
+    
+    entryFields.innerHTML = textBoxes.map(box => `
+        <div class="entry-field">
+            <label for="entry_${box.id}">${box.label}:</label>
+            <input type="text" 
+                   id="entry_${box.id}" 
+                   name="${box.name}" 
+                   placeholder="Enter ${box.label}" 
+                   class="text-input"
+                   required>
+        </div>
+    `).join('');
+}
+
+function setupEventListeners() {
+    document.getElementById('entryForm').addEventListener('submit', addNewEntry);
+    document.getElementById('downloadAll').addEventListener('click', downloadAllPDFs);
+}
+
+function addNewEntry(e) {
+    e.preventDefault();
+    
+    const values = getFormValues();
+    const title = generateEntryTitle(values);
+    
+    const newEntry = {
+        id: Date.now(),
+        title: title,
+        values: values,
+        timestamp: new Date().toLocaleTimeString()
+    };
+    
+    entries.push(newEntry);
+    document.getElementById('entryForm').reset();
+    
+    updateEntriesList();
+    updateEntriesCount();
+    showDownloadButton();
+    
+    showNotification('✅ Entry added successfully!', 'success');
+}
+
+function generateEntryTitle(values) {
+    for (const key in values) {
+        if (values[key] && values[key].trim() !== '') {
+            return values[key];
+        }
+    }
+    return `Entry ${entries.length + 1}`;
+}
+
+function getFormValues() {
+    const values = {};
+    const inputs = document.querySelectorAll('#entryForm input[type="text"]');
+    
+    inputs.forEach(input => {
+        values[input.name] = input.value;
+    });
+    
+    return values;
+}
+
+function updateEntriesList() {
+    const entriesList = document.getElementById('entriesList');
+    
+    if (entries.length === 0) {
+        entriesList.innerHTML = '<div class="no-entries">No entries yet. Add your first entry!</div>';
+        return;
+    }
+    
+    entriesList.innerHTML = entries.map((entry, index) => `
+        <div class="entry-item">
+            <div class="entry-header">
+                <span class="entry-title">${entry.title}</span>
+                <div class="entry-actions">
+                    <button class="entry-action entry-edit" onclick="editEntry(${index})">✏️ Edit</button>
+                    <button class="entry-action entry-delete" onclick="deleteEntry(${index})">🗑️ Delete</button>
+                </div>
+            </div>
+            <div class="entry-content">
+                ${Object.entries(entry.values).map(([key, value]) => 
+                    value ? `<div><strong>${key}:</strong> ${value}</div>` : ''
+                ).join('')}
+                <div style="margin-top: 5px; font-size: 11px; color: #999;">
+                    Added: ${entry.timestamp}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateEntriesCount() {
+    const count = entries.length;
+    document.getElementById('entriesCount').textContent = `(${count})`;
+    document.getElementById('totalEntries').textContent = count;
+}
+
+function showDownloadButton() {
+    if (entries.length > 0) {
+        document.getElementById('downloadAll').style.display = 'inline-block';
+    }
+}
+
+function editEntry(index) {
+    const entry = entries[index];
+    
+    const inputs = document.querySelectorAll('#entryForm input[type="text"]');
+    inputs.forEach(input => {
+        input.value = entry.values[input.name] || '';
+    });
+    
+    entries.splice(index, 1);
+    updateEntriesList();
+    updateEntriesCount();
+    
+    if (entries.length === 0) {
+        document.getElementById('downloadAll').style.display = 'none';
+    }
+    
+    showNotification('📝 Entry moved to form for editing', 'info');
+}
+
+function deleteEntry(index) {
+    if (confirm('Are you sure you want to delete this entry?')) {
+        entries.splice(index, 1);
+        updateEntriesList();
+        updateEntriesCount();
+        
+        if (entries.length === 0) {
+            document.getElementById('downloadAll').style.display = 'none';
+        }
+        
+        showNotification('🗑️ Entry deleted', 'warning');
+    }
+}
+
+async function downloadAllPDFs() {
+    if (isGenerating) {
+        showNotification('⚠️ Generation already in progress', 'warning');
+        return;
+    }
+
+    try {
+        if (entries.length === 0) {
+            showNotification('❌ No entries to download', 'error');
+            return;
+        }
+
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressDetails = document.getElementById('progressDetails');
+        const downloadBtn = document.getElementById('downloadAll');
+        
+        progressSection.style.display = 'block';
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = '⏳ Generating ZIP...';
+        isGenerating = true;
+
+        // Update progress
+        progressFill.style.width = '30%';
+        progressText.textContent = 'Preparing data...';
+        progressDetails.textContent = `Processing ${entries.length} entries`;
+
+        // Prepare data for batch request
+        const batchData = {
+            entries: entries.map(entry => ({
+                title: entry.title,
+                values: entry.values
+            }))
+        };
+
+        console.log(`Sending batch request for ${entries.length} PDFs to: /api/batch-fill/${currentPdfId}/`);
+
+        // Send single batch request to server - استفاده از URL صحیح
+        const response = await fetch(`/api/batch-fill/${currentPdfId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(batchData)
+        });
+
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                // If response is not JSON, use status text
+                errorMessage = response.statusText || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+
+        // Update progress
+        progressFill.style.width = '80%';
+        progressText.textContent = 'Creating ZIP file...';
+        progressDetails.textContent = 'Almost done!';
+
+        // Get the ZIP file
+        const blob = await response.blob();
+        
+        console.log(`ZIP file received: ${blob.size} bytes, type: ${blob.type}`);
+        
+        if (blob.size === 0) {
+            throw new Error('Generated ZIP file is empty');
+        }
+        
+        // Update progress to 100%
+        progressFill.style.width = '100%';
+        progressText.textContent = 'Downloading ZIP file...';
+        progressDetails.textContent = 'Finalizing...';
+
+        // Download the ZIP file
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `batch_certificates_${currentPdfId}.zip`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Cleanup
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+
+        // Reset UI
+        setTimeout(() => {
+            progressSection.style.display = 'none';
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = '📦 Download All';
+            isGenerating = false;
+        }, 1000);
+        
+        showNotification(`✅ Success! Downloaded ${entries.length} PDFs as ZIP file`, 'success');
+
+    } catch (error) {
+        console.error('Error in downloadAllPDFs:', error);
+        
+        document.getElementById('progressSection').style.display = 'none';
+        document.getElementById('downloadAll').disabled = false;
+        document.getElementById('downloadAll').textContent = '📦 Download All';
+        isGenerating = false;
+        
+        showNotification(`❌ Error: ${error.message}`, 'error');
+    }
+}
+
+// Function to get CSRF token
+function getCSRFToken() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        ${type === 'success' ? 'background: #28a745;' : 
+          type === 'error' ? 'background: #dc3545;' : 
+          type === 'warning' ? 'background: #ffc107; color: #000;' : 
+          'background: #17a2b8;'}
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 100);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+</script>
+{% endblock %}
